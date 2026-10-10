@@ -154,6 +154,60 @@ def check_security_antipatterns(dir_path):
     return findings
 
 
+VAR_BLOCK_RE = re.compile(r'variable\s+"([^"]+)"\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', re.DOTALL)
+OUTPUT_BLOCK_RE = re.compile(r'output\s+"([^"]+)"\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', re.DOTALL)
+RESOURCE_RE = re.compile(r'resource\s+"(\w+)"\s+"([^"]+)"')
+RESOURCE_BLOCK_RE = re.compile(r'resource\s+"(\w+)"\s+"([^"]+)"\s*\{(?P<body>.*?)\n\}', re.DOTALL)
+IDENTIFIER_RE = re.compile(r"^[a-z0-9_]+$")
+COUNT_ASSIGN_RE = re.compile(r"^\s*count\s*=", re.MULTILINE)
+
+
+def check_coding_convention(dir_path):
+    """命名規則・variable/outputの記述方法など、機械的に判定可能なコーディング規約への準拠を見る。"""
+    all_text = ""
+    for tf_file in dir_path.glob("*.tf"):
+        all_text += tf_file.read_text() + "\n"
+
+    checks = []
+
+    var_names = VAR_BLOCK_RE.findall(all_text)
+    for name, body in var_names:
+        checks.append({"name": f'variable "{name}" に type がある', "passed": "type" in body})
+        checks.append({"name": f'variable "{name}" に description がある', "passed": "description" in body})
+        checks.append({"name": f'variable "{name}" はsnake_case', "passed": bool(IDENTIFIER_RE.match(name))})
+
+    for name, body in OUTPUT_BLOCK_RE.findall(all_text):
+        checks.append({"name": f'output "{name}" に description がある', "passed": "description" in body})
+
+    by_type = {}
+    for rtype, rname in RESOURCE_RE.findall(all_text):
+        checks.append({"name": f'resource "{rtype}.{rname}" はsnake_case', "passed": bool(IDENTIFIER_RE.match(rname))})
+        type_suffix = rtype.split("_", 1)[1] if "_" in rtype else rtype
+        checks.append({
+            "name": f'resource "{rtype}.{rname}" はリソースタイプ名を繰り返していない',
+            "passed": rname != type_suffix,
+        })
+        by_type.setdefault(rtype, []).append(rname)
+    for rtype, names in by_type.items():
+        if len(names) > 1:
+            checks.append({
+                "name": f'"{rtype}" が複数ある場合に "this" を使っていない',
+                "passed": "this" not in names,
+            })
+
+    for rtype, rname, body in RESOURCE_BLOCK_RE.findall(all_text):
+        if COUNT_ASSIGN_RE.search(body):
+            checks.append({
+                "name": f'resource "{rtype}.{rname}" はcountではなくfor_eachを使っている',
+                "passed": False,
+            })
+
+    passed = sum(1 for c in checks if c["passed"])
+    total = len(checks)
+    violations = [c["name"] for c in checks if not c["passed"]]
+    return {"passed": passed, "total": total, "violations": violations}
+
+
 def count_lines_and_files(dir_path):
     tf_files = list(dir_path.glob("*.tf"))
     total_lines = sum(len(f.read_text().splitlines()) for f in tf_files)
@@ -188,6 +242,7 @@ def main():
                 "checkov": run_checkov(task_dir),
                 "requirements": check_requirements(task_dir, task_name, requirements_map.get(task_name, [])),
                 "security_antipatterns": check_security_antipatterns(task_dir),
+                "coding_convention": check_coding_convention(task_dir),
             }
             all_results[model_name][task_name] = result
 
