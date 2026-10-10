@@ -1,0 +1,148 @@
+{
+  "task1_simple": [
+    {
+      "name": "S3バケット",
+      "pattern": "resource\\s+\"aws_s3_bucket\""
+    },
+    {
+      "name": "バージョニング有効化",
+      "pattern": "resource\\s+\"aws_s3_bucket_versioning\""
+    },
+    {
+      "name": "サーバーサイド暗号化",
+      "pattern": "resource\\s+\"aws_s3_bucket_server_side_encryption_configuration\""
+    },
+    {
+      "name": "パブリックアクセスブロック",
+      "pattern": "resource\\s+\"aws_s3_bucket_public_access_block\""
+    },
+    {
+      "name": "バケット名variable",
+      "pattern": "variable\\s+\"[^\"]*bucket"
+    },
+    {
+      "name": "region variable",
+      "pattern": "variable\\s+\"[^\"]*region"
+    },
+    {
+      "name": "bucket name output",
+      "pattern": "output\\s+\"[^\"]*\""
+    },
+    {
+      "name": "ARN output",
+      "pattern": "output[\\s\\S]{0,200}?arn"
+    }
+  ],
+  "task2_medium": [
+    {
+      "name": "VPC",
+      "pattern": "resource\\s+\"aws_vpc\""
+    },
+    {
+      "name": "パブリックサブネット(2つ以上)",
+      "pattern": "resource\\s+\"aws_subnet\""
+    },
+    {
+      "name": "インターネットゲートウェイ",
+      "pattern": "resource\\s+\"aws_internet_gateway\""
+    },
+    {
+      "name": "ルートテーブル",
+      "pattern": "resource\\s+\"aws_route_table\""
+    },
+    {
+      "name": "セキュリティグループ",
+      "pattern": "resource\\s+\"aws_security_group\""
+    },
+    {
+      "name": "EC2インスタンス",
+      "pattern": "resource\\s+\"aws_instance\""
+    },
+    {
+      "name": "AMI data source",
+      "pattern": "data\\s+\"aws_ami\""
+    },
+    {
+      "name": "インスタンスタイプvariable",
+      "pattern": "variable\\s+\"[^\"]*instance_type"
+    },
+    {
+      "name": "SSH許可CIDR variable",
+      "pattern": "variable\\s+\"[^\"]*(ssh|cidr)"
+    },
+    {
+      "name": "Projectタグ",
+      "pattern": "Project\\s*=\\s*(\"haiku-benchmark\"|var\\.[a-zA-Z_]+)"
+    },
+    {
+      "name": "region variable",
+      "pattern": "variable\\s+\"[^\"]*region"
+    }
+  ],
+  "task3_complex": [
+    {
+      "name": "VPC",
+      "pattern": "resource\\s+\"aws_vpc\""
+    },
+    {
+      "name": "パブリック/プライベートサブネット",
+      "pattern": "resource\\s+\"aws_subnet\""
+    },
+    {
+      "name": "インターネットゲートウェイ",
+      "pattern": "resource\\s+\"aws_internet_gateway\""
+    },
+    {
+      "name": "NATゲートウェイ",
+      "pattern": "resource\\s+\"aws_nat_gateway\""
+    },
+    {
+      "name": "ALB",
+      "pattern": "resource\\s+\"aws_lb\""
+    },
+    {
+      "name": "ターゲットグループ",
+      "pattern": "resource\\s+\"aws_lb_target_group\""
+    },
+    {
+      "name": "Launch Template",
+      "pattern": "resource\\s+\"aws_launch_template\""
+    },
+    {
+      "name": "Auto Scaling Group",
+      "pattern": "resource\\s+\"aws_autoscaling_group\""
+    },
+    {
+      "name": "RDSインスタンス",
+      "pattern": "resource\\s+\"aws_db_instance\""
+    },
+    {
+      "name": "DB subnet group",
+      "pattern": "resource\\s+\"aws_db_subnet_group\""
+    },
+    {
+      "name": "IAMロール",
+      "pattern": "resource\\s+\"aws_iam_role\""
+    },
+    {
+      "name": "IAMインスタンスプロファイル",
+      "pattern": "resource\\s+\"aws_iam_instance_profile\""
+    },
+    {
+      "name": "セキュリティグループ(複数)",
+      "pattern": "resource\\s+\"aws_security_group\""
+    },
+    {
+      "name": "AMI data source",
+      "pattern": "data\\s+\"aws_ami\""
+    },
+    {
+      "name": "Projectタグ",
+      "pattern": "Project\\s*=\\s*(\"haiku-benchmark\"|var\\.[a-zA-Z_]+)"
+    },
+    {
+      "name": "region variable",
+      "pattern": "variable\\s+\"[^\"]*region"
+    }
+  ]
+}
