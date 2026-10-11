@@ -14,31 +14,42 @@ provider "aws" {
 }
 
 variable "region" {
-  description = "AWSリージョン"
   type        = string
+  description = "AWSリージョン"
   default     = "ap-northeast-1"
 }
 
 variable "vpc_cidr" {
-  description = "VPCのCIDRブロック"
   type        = string
+  description = "VPCのCIDRブロック"
   default     = "10.0.0.0/16"
 }
 
-variable "allowed_ssh_cidrs" {
-  description = "SSH(22番)接続を許可するCIDRのリスト。0.0.0.0/0は指定不可"
+variable "public_subnet_cidrs" {
   type        = list(string)
-  default     = []
+  description = "パブリックサブネットのCIDRブロックのリスト(異なるAZに2つ作成される)"
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+
+  validation {
+    condition     = length(var.public_subnet_cidrs) == 2
+    error_message = "public_subnet_cidrs には2つのCIDRを指定してください。"
+  }
+}
+
+variable "allowed_ssh_cidrs" {
+  type        = list(string)
+  description = "SSH(22番)接続を許可するCIDRのリスト。0.0.0.0/0は指定不可。"
+  default     = ["10.0.0.0/16"]
 
   validation {
     condition     = !contains(var.allowed_ssh_cidrs, "0.0.0.0/0")
-    error_message = "セキュリティのため、allowed_ssh_cidrsに 0.0.0.0/0 は指定できません。"
+    error_message = "セキュリティのため、allowed_ssh_cidrs に 0.0.0.0/0 は指定できません。接続元のIPを指定してください。"
   }
 }
 
 variable "instance_type" {
-  description = "EC2インスタンスタイプ"
   type        = string
+  description = "EC2インスタンスのタイプ"
   default     = "t3.micro"
 }
 
@@ -46,31 +57,32 @@ locals {
   common_tags = {
     Project = "haiku-benchmark"
   }
+
+  # AZ名をキーとしたパブリックサブネット定義
+  public_subnets = {
+    for idx, cidr in var.public_subnet_cidrs :
+    data.aws_availability_zones.available.names[idx] => {
+      cidr = cidr
+    }
+  }
 }
 
-# 利用可能なAZ一覧
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# 最新のAmazon Linux 2023 AMI
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["al2023-ami-2023*-x86_64"]
   }
 
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
-  }
-
-  filter {
-    name   = "state"
-    values = ["available"]
   }
 }
 
@@ -85,20 +97,6 @@ resource "aws_vpc" "main" {
   })
 }
 
-# パブリックサブネット（異なるAZに2つ）
-resource "aws_subnet" "public" {
-  count = 2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
-
-  tags = merge(local.common_tags, {
-    Name = "haiku-benchmark-public-${count.index + 1}"
-  })
-}
-
 # インターネットゲートウェイ
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
@@ -108,31 +106,46 @@ resource "aws_internet_gateway" "main" {
   })
 }
 
+# パブリックサブネット(異なるAZに作成)
+resource "aws_subnet" "public" {
+  for_each = local.public_subnets
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = each.value.cidr
+  availability_zone       = each.key
+  map_public_ip_on_launch = true
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-public-${each.key}"
+  })
+}
+
 # パブリック用ルートテーブル
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
 
   tags = merge(local.common_tags, {
     Name = "haiku-benchmark-public-rt"
   })
 }
 
-resource "aws_route_table_association" "public" {
-  count = 2
+resource "aws_route" "public_internet" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.main.id
+}
 
-  subnet_id      = aws_subnet.public[count.index].id
+resource "aws_route_table_association" "public" {
+  for_each = aws_subnet.public
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
 # EC2用セキュリティグループ
 resource "aws_security_group" "ec2" {
   name        = "haiku-benchmark-ec2-sg"
-  description = "Security group for haiku-benchmark EC2"
+  description = "Security group for haiku-benchmark EC2 instance"
   vpc_id      = aws_vpc.main.id
 
   tags = merge(local.common_tags, {
@@ -140,6 +153,7 @@ resource "aws_security_group" "ec2" {
   })
 }
 
+# SSH(22番): 許可されたCIDRごとにルールを作成
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   for_each = toset(var.allowed_ssh_cidrs)
 
@@ -151,10 +165,11 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   ip_protocol       = "tcp"
 
   tags = merge(local.common_tags, {
-    Name = "haiku-benchmark-ssh-${replace(each.value, "/", "-")}"
+    Name = "haiku-benchmark-ssh-${replace(each.value, "/", "_")}"
   })
 }
 
+# HTTP(80番)
 resource "aws_vpc_security_group_ingress_rule" "http" {
   security_group_id = aws_security_group.ec2.id
   description       = "HTTP from anywhere"
@@ -168,9 +183,10 @@ resource "aws_vpc_security_group_ingress_rule" "http" {
   })
 }
 
+# アウトバウンド: 全許可
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.ec2.id
-  description       = "Allow all outbound"
+  description       = "Allow all outbound traffic"
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 
@@ -179,12 +195,13 @@ resource "aws_vpc_security_group_egress_rule" "all" {
   })
 }
 
-# EC2インスタンス（パブリックサブネット）
+# EC2インスタンス(パブリックサブネット, 先頭のサブネットに配置)
 resource "aws_instance" "main" {
-  ami                         = data.aws_ami.al2023.id
-  instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public[0].id
-  vpc_security_group_ids      = [aws_security_group.ec2.id]
+  ami                    = data.aws_ami.al2023.id
+  instance_type          = var.instance_type
+  subnet_id              = values(aws_subnet.public)[0].id
+  vpc_security_group_ids = [aws_security_group.ec2.id]
+
   associate_public_ip_address = true
 
   tags = merge(local.common_tags, {
@@ -193,16 +210,16 @@ resource "aws_instance" "main" {
 }
 
 output "vpc_id" {
-  description = "VPCのID"
+  description = "作成したVPCのID"
   value       = aws_vpc.main.id
 }
 
 output "public_subnet_ids" {
-  description = "パブリックサブネットのID一覧"
-  value       = aws_subnet.public[*].id
+  description = "作成したパブリックサブネットIDの一覧"
+  value       = [for subnet in aws_subnet.public : subnet.id]
 }
 
 output "ec2_public_ip" {
-  description = "EC2インスタンスのパブリックIP"
+  description = "EC2インスタンスのパブリックIPアドレス"
   value       = aws_instance.main.public_ip
 }

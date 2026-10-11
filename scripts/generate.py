@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 import boto3
@@ -24,14 +25,23 @@ CODE_BLOCK_RE = re.compile(r"```(?:hcl|terraform)?\n(?P<code>.*?)```", re.DOTALL
 FILE_MARKER_RE = re.compile(r"#\s*ファイル名[:：]\s*(?P<filename>[\w.\-/]+\.tf)\s*\n")
 
 
-def call_model(client, model_id: str, prompt: str) -> str:
+def call_model(client, model_id: str, prompt: str) -> dict:
+    start = time.monotonic()
     response = client.converse(
         modelId=model_id,
         messages=[{"role": "user", "content": [{"text": prompt}]}],
-        inferenceConfig={"maxTokens": 8192},
+        inferenceConfig={"maxTokens": 16000},
     )
+    elapsed_sec = time.monotonic() - start
     parts = response["output"]["message"]["content"]
-    return "".join(p.get("text", "") for p in parts)
+    text = "".join(p.get("text", "") for p in parts)
+    usage = response.get("usage", {})
+    return {
+        "text": text,
+        "elapsed_sec": elapsed_sec,
+        "input_tokens": usage.get("inputTokens", 0),
+        "output_tokens": usage.get("outputTokens", 0),
+    }
 
 
 def extract_files(text: str) -> dict[str, str]:
@@ -69,20 +79,32 @@ def main():
             model_id = MODELS[model_key]
             print(f"[generate] task={task_name} model={model_key} ...", file=sys.stderr)
             try:
-                raw_text = call_model(client, model_id, prompt)
+                result = call_model(client, model_id, prompt)
             except Exception as e:
                 print(f"  ERROR: {e}", file=sys.stderr)
                 continue
 
             out_dir = GENERATED_DIR / model_key / task_name
+            for stale in out_dir.glob("*.tf"):
+                stale.unlink()
             out_dir.mkdir(parents=True, exist_ok=True)
-            (out_dir / "_raw_response.md").write_text(raw_text)
+            (out_dir / "_raw_response.md").write_text(result["text"])
+            (out_dir / "_meta.json").write_text(json.dumps({
+                "elapsed_sec": result["elapsed_sec"],
+                "input_tokens": result["input_tokens"],
+                "output_tokens": result["output_tokens"],
+            }, indent=2))
 
-            files = extract_files(raw_text)
+            files = extract_files(result["text"])
             for filename, code in files.items():
                 safe_name = Path(filename).name
                 (out_dir / safe_name).write_text(code.strip() + "\n")
-            print(f"  wrote {list(files.keys())} to {out_dir}", file=sys.stderr)
+            print(
+                f"  wrote {list(files.keys())} to {out_dir} "
+                f"({result['elapsed_sec']:.1f}s, "
+                f"{result['input_tokens']}in/{result['output_tokens']}out tokens)",
+                file=sys.stderr,
+            )
 
 
 if __name__ == "__main__":

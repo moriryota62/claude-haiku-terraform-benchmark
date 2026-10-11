@@ -1,20 +1,6 @@
 ```hcl
-# ファイル名: variables.tf
-variable "region" {
-  description = "AWSリージョン"
-  type        = string
-  default     = "ap-northeast-1"
-}
-
-variable "bucket_name" {
-  description = "S3バケット名(グローバルで一意である必要があります)"
-  type        = string
-  default     = "my-private-bucket-example-12345"
-}
-
-# ファイル名: providers.tf
 terraform {
-  required_version = ">= 1.3.0"
+  required_version = ">= 1.5.0"
 
   required_providers {
     aws = {
@@ -28,21 +14,32 @@ provider "aws" {
   region = var.region
 }
 
-# ファイル名: main.tf
-resource "aws_s3_bucket" "this" {
+variable "region" {
+  type        = string
+  description = "AWSリソースを作成するリージョン"
+  default     = "ap-northeast-1"
+}
+
+variable "bucket_name" {
+  type        = string
+  description = "作成するS3バケット名（グローバルで一意である必要があります）"
+  default     = "example-private-bucket-change-me"
+}
+
+resource "aws_s3_bucket" "main" {
   bucket = var.bucket_name
 }
 
-resource "aws_s3_bucket_versioning" "this" {
-  bucket = aws_s3_bucket.this.id
+resource "aws_s3_bucket_versioning" "main" {
+  bucket = aws_s3_bucket.main.id
 
   versioning_configuration {
     status = "Enabled"
   }
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
-  bucket = aws_s3_bucket.this.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "main" {
+  bucket = aws_s3_bucket.main.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -51,8 +48,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "this" {
-  bucket = aws_s3_bucket.this.id
+resource "aws_s3_bucket_public_access_block" "main" {
+  bucket = aws_s3_bucket.main.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -60,14 +57,13 @@ resource "aws_s3_bucket_public_access_block" "this" {
   restrict_public_buckets = true
 }
 
-# ファイル名: outputs.tf
 output "bucket_name" {
-  description = "作成したS3バケット名"
-  value       = aws_s3_bucket.this.bucket
+  description = "作成したS3バケットの名前"
+  value       = aws_s3_bucket.main.bucket
 }
 
 output "bucket_arn" {
   description = "作成したS3バケットのARN"
-  value       = aws_s3_bucket.this.arn
+  value       = aws_s3_bucket.main.arn
 }
 ```

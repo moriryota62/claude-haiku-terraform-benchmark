@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -12,33 +13,37 @@ provider "aws" {
 }
 
 variable "aws_region" {
-  description = "AWS region"
   type        = string
+  description = "AWS region"
   default     = "ap-northeast-1"
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for VPC"
   type        = string
+  description = "CIDR block for VPC"
   default     = "10.0.0.0/16"
 }
 
 variable "ssh_allowed_cidr" {
-  description = "CIDR block allowed for SSH access"
   type        = string
+  description = "CIDR block allowed for SSH access"
   default     = "10.0.0.0/8"
 }
 
 variable "instance_type" {
-  description = "EC2 instance type"
   type        = string
+  description = "EC2 instance type"
   default     = "t3.micro"
 }
 
 variable "project_name" {
-  description = "Project name for tagging"
   type        = string
+  description = "Project name for tagging"
   default     = "haiku-benchmark"
+}
+
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
 data "aws_ami" "amazon_linux_2023" {
@@ -51,25 +56,23 @@ data "aws_ami" "amazon_linux_2023" {
   }
 
   filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  filter {
     name   = "root-device-type"
     values = ["ebs"]
   }
-}
 
-data "aws_availability_zones" "available" {
-  state = "available"
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
-    Name    = "${var.project_name}-vpc"
+    Name    = "main-vpc"
     Project = var.project_name
   }
 }
@@ -78,20 +81,30 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name    = "${var.project_name}-igw"
+    Name    = "main-igw"
     Project = var.project_name
   }
 }
 
 resource "aws_subnet" "public" {
-  count                   = 2
+  for_each = {
+    "public_1a" = {
+      cidr_block            = "10.0.1.0/24"
+      availability_zone_idx = 0
+    }
+    "public_1c" = {
+      cidr_block            = "10.0.2.0/24"
+      availability_zone_idx = 1
+    }
+  }
+
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 2, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  cidr_block              = each.value.cidr_block
+  availability_zone       = data.aws_availability_zones.available.names[each.value.availability_zone_idx]
   map_public_ip_on_launch = true
 
   tags = {
-    Name    = "${var.project_name}-public-subnet-${count.index + 1}"
+    Name    = each.key
     Project = var.project_name
   }
 }
@@ -105,20 +118,21 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name    = "${var.project_name}-public-rt"
+    Name    = "public-rt"
     Project = var.project_name
   }
 }
 
 resource "aws_route_table_association" "public" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
+  for_each = aws_subnet.public
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "${var.project_name}-ec2-sg"
-  description = "Security group for EC2 instances"
+  name_prefix = "ec2-sg-"
+  description = "Security group for EC2 instance"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -143,19 +157,23 @@ resource "aws_security_group" "ec2" {
   }
 
   tags = {
-    Name    = "${var.project_name}-ec2-sg"
+    Name    = "ec2-sg"
     Project = var.project_name
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
 resource "aws_instance" "main" {
   ami                    = data.aws_ami.amazon_linux_2023.id
   instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public[0].id
+  subnet_id              = aws_subnet.public["public_1a"].id
   vpc_security_group_ids = [aws_security_group.ec2.id]
 
   tags = {
-    Name    = "${var.project_name}-instance"
+    Name    = "main-instance"
     Project = var.project_name
   }
 }
@@ -167,10 +185,10 @@ output "vpc_id" {
 
 output "subnet_ids" {
   description = "List of public subnet IDs"
-  value       = aws_subnet.public[*].id
+  value       = [for subnet in aws_subnet.public : subnet.id]
 }
 
 output "ec2_public_ip" {
-  description = "Public IP of EC2 instance"
+  description = "Public IP address of EC2 instance"
   value       = aws_instance.main.public_ip
 }

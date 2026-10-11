@@ -4,13 +4,13 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = ">= 5.30"
     }
   }
 }
 
 provider "aws" {
-  region = var.region
+  region = var.aws_region
 
   default_tags {
     tags = {
@@ -19,64 +19,47 @@ provider "aws" {
   }
 }
 
-variable "region" {
-  description = "AWS region"
+variable "aws_region" {
   type        = string
+  description = "AWS region to deploy resources into"
   default     = "ap-northeast-1"
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for the VPC"
   type        = string
+  description = "CIDR block for the VPC"
   default     = "10.0.0.0/16"
 }
 
 variable "instance_type" {
-  description = "EC2 instance type for the ASG"
   type        = string
+  description = "EC2 instance type for the Auto Scaling Group"
   default     = "t3.micro"
 }
 
 variable "db_instance_class" {
-  description = "RDS instance class"
   type        = string
+  description = "RDS instance class"
   default     = "db.t3.micro"
 }
 
 variable "db_name" {
-  description = "Initial database name"
   type        = string
+  description = "Name of the initial database"
   default     = "appdb"
 }
 
 variable "db_username" {
-  description = "RDS master username (password is managed by AWS Secrets Manager)"
   type        = string
+  description = "Master username for the RDS instance (the password is managed by AWS Secrets Manager)"
   default     = "dbadmin"
-}
-
-variable "db_allocated_storage" {
-  description = "RDS allocated storage (GB)"
-  type        = number
-  default     = 20
-}
-
-variable "name_prefix" {
-  description = "Prefix used for resource names"
-  type        = string
-  default     = "haiku-bench"
-}
-
-locals {
-  common_tags = {
-    Project = "haiku-benchmark"
-  }
-  azs = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 
 data "aws_availability_zones" "available" {
   state = "available"
 }
+
+data "aws_caller_identity" "current" {}
 
 data "aws_ami" "al2023" {
   most_recent = true
@@ -98,59 +81,101 @@ data "aws_ami" "al2023" {
   }
 }
 
-data "aws_caller_identity" "current" {}
+locals {
+  common_tags = {
+    Project = "haiku-benchmark"
+  }
 
-############################
+  azs = slice(data.aws_availability_zones.available.names, 0, 2)
+
+  public_subnets = {
+    a = {
+      cidr = cidrsubnet(var.vpc_cidr, 8, 0)
+      az   = local.azs[0]
+    }
+    b = {
+      cidr = cidrsubnet(var.vpc_cidr, 8, 1)
+      az   = local.azs[1]
+    }
+  }
+
+  private_subnets = {
+    a = {
+      cidr = cidrsubnet(var.vpc_cidr, 8, 10)
+      az   = local.azs[0]
+    }
+    b = {
+      cidr = cidrsubnet(var.vpc_cidr, 8, 11)
+      az   = local.azs[1]
+    }
+  }
+
+  log_group_name = "/haiku-benchmark/app"
+}
+
+# ---------------------------------------------------------------
 # Network
-############################
+# ---------------------------------------------------------------
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-vpc" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-vpc"
+  })
+}
+
+resource "aws_subnet" "public" {
+  for_each = local.public_subnets
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = each.value.cidr
+  availability_zone       = each.value.az
+  map_public_ip_on_launch = false
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-public-${each.key}"
+  })
+}
+
+resource "aws_subnet" "private" {
+  for_each = local.private_subnets
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr
+  availability_zone = each.value.az
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-private-${each.key}"
+  })
 }
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-igw" })
-}
-
-resource "aws_subnet" "public" {
-  count = 2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = local.azs[count.index]
-  map_public_ip_on_launch = false
-
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-public-${count.index + 1}" })
-}
-
-resource "aws_subnet" "private" {
-  count = 2
-
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
-  availability_zone = local.azs[count.index]
-
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-private-${count.index + 1}" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-igw"
+  })
 }
 
 resource "aws_eip" "nat" {
   domain = "vpc"
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-nat-eip" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-nat-eip"
+  })
 
   depends_on = [aws_internet_gateway.main]
 }
 
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+  subnet_id     = aws_subnet.public["a"].id
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-nat" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-nat"
+  })
 
   depends_on = [aws_internet_gateway.main]
 }
@@ -163,7 +188,9 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.main.id
   }
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-public-rt" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-public-rt"
+  })
 }
 
 resource "aws_route_table" "private" {
@@ -174,133 +201,114 @@ resource "aws_route_table" "private" {
     nat_gateway_id = aws_nat_gateway.main.id
   }
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-private-rt" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-private-rt"
+  })
 }
 
 resource "aws_route_table_association" "public" {
-  count = 2
+  for_each = aws_subnet.public
 
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table_association" "private" {
-  count = 2
+  for_each = aws_subnet.private
 
-  subnet_id      = aws_subnet.private[count.index].id
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.private.id
 }
 
-############################
-# Security Groups
-############################
+# ---------------------------------------------------------------
+# Security groups
+# ---------------------------------------------------------------
 resource "aws_security_group" "alb" {
-  name        = "${var.name_prefix}-alb-sg"
-  description = "ALB security group"
+  name_prefix = "haiku-benchmark-alb-"
+  description = "Security group for ALB"
   vpc_id      = aws_vpc.main.id
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-alb-sg" })
+  ingress {
+    description = "HTTP from anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-alb-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-resource "aws_security_group" "asg" {
-  name        = "${var.name_prefix}-asg-sg"
-  description = "ASG instances security group"
+resource "aws_security_group" "app" {
+  name_prefix = "haiku-benchmark-app-"
+  description = "Security group for ASG instances"
   vpc_id      = aws_vpc.main.id
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-asg-sg" })
+  ingress {
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-app-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-resource "aws_security_group" "rds" {
-  name        = "${var.name_prefix}-rds-sg"
-  description = "RDS security group"
+resource "aws_security_group" "db" {
+  name_prefix = "haiku-benchmark-db-"
+  description = "Security group for RDS"
   vpc_id      = aws_vpc.main.id
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-rds-sg" })
+  ingress {
+    description     = "MySQL from ASG instances"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-db-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-# ALB: inbound 80 from anywhere
-resource "aws_vpc_security_group_ingress_rule" "alb_http" {
-  security_group_id = aws_security_group.alb.id
-  description       = "HTTP from anywhere"
-  ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
-  cidr_ipv4         = "0.0.0.0/0"
-
-  tags = local.common_tags
-}
-
-# ALB: outbound 80 to ASG only
-resource "aws_vpc_security_group_egress_rule" "alb_to_asg" {
-  security_group_id            = aws_security_group.alb.id
-  description                  = "HTTP to ASG instances"
-  ip_protocol                  = "tcp"
-  from_port                    = 80
-  to_port                      = 80
-  referenced_security_group_id = aws_security_group.asg.id
-
-  tags = local.common_tags
-}
-
-# ASG: inbound 80 from ALB only
-resource "aws_vpc_security_group_ingress_rule" "asg_from_alb" {
-  security_group_id            = aws_security_group.asg.id
-  description                  = "HTTP from ALB"
-  ip_protocol                  = "tcp"
-  from_port                    = 80
-  to_port                      = 80
-  referenced_security_group_id = aws_security_group.alb.id
-
-  tags = local.common_tags
-}
-
-# ASG: outbound HTTPS (package install / AWS APIs via NAT)
-resource "aws_vpc_security_group_egress_rule" "asg_https" {
-  security_group_id = aws_security_group.asg.id
-  description       = "HTTPS to internet via NAT"
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_ipv4         = "0.0.0.0/0"
-
-  tags = local.common_tags
-}
-
-# ASG: outbound MySQL to RDS
-resource "aws_vpc_security_group_egress_rule" "asg_to_rds" {
-  security_group_id            = aws_security_group.asg.id
-  description                  = "MySQL to RDS"
-  ip_protocol                  = "tcp"
-  from_port                    = 3306
-  to_port                      = 3306
-  referenced_security_group_id = aws_security_group.rds.id
-
-  tags = local.common_tags
-}
-
-# RDS: inbound 3306 from ASG only
-resource "aws_vpc_security_group_ingress_rule" "rds_from_asg" {
-  security_group_id            = aws_security_group.rds.id
-  description                  = "MySQL from ASG instances"
-  ip_protocol                  = "tcp"
-  from_port                    = 3306
-  to_port                      = 3306
-  referenced_security_group_id = aws_security_group.asg.id
-
-  tags = local.common_tags
-}
-
-############################
+# ---------------------------------------------------------------
 # IAM
-############################
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "/${var.name_prefix}/app"
-  retention_in_days = 14
-
-  tags = local.common_tags
-}
-
-data "aws_iam_policy_document" "ec2_assume" {
+# ---------------------------------------------------------------
+data "aws_iam_policy_document" "ec2_assume_role" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
@@ -312,16 +320,8 @@ data "aws_iam_policy_document" "ec2_assume" {
   }
 }
 
-resource "aws_iam_role" "ec2" {
-  name               = "${var.name_prefix}-ec2-role"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json
-
-  tags = local.common_tags
-}
-
-data "aws_iam_policy_document" "ec2_permissions" {
+data "aws_iam_policy_document" "cloudwatch_logs" {
   statement {
-    sid    = "WriteAppLogs"
     effect = "Allow"
     actions = [
       "logs:CreateLogStream",
@@ -330,61 +330,66 @@ data "aws_iam_policy_document" "ec2_permissions" {
     ]
     resources = [
       aws_cloudwatch_log_group.app.arn,
-      "${aws_cloudwatch_log_group.app.arn}:log-stream:*",
+      "${aws_cloudwatch_log_group.app.arn}:*",
     ]
-  }
-
-  statement {
-    sid       = "ReadDbSecret"
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
   }
 }
 
-resource "aws_iam_policy" "ec2" {
-  name        = "${var.name_prefix}-ec2-policy"
-  description = "Minimal permissions for application instances"
-  policy      = data.aws_iam_policy_document.ec2_permissions.json
+resource "aws_cloudwatch_log_group" "app" {
+  name              = local.log_group_name
+  retention_in_days = 30
 
   tags = local.common_tags
 }
 
-resource "aws_iam_role_policy_attachment" "ec2" {
+resource "aws_iam_role" "ec2" {
+  name_prefix        = "haiku-benchmark-ec2-"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_policy" "cloudwatch_logs" {
+  name_prefix = "haiku-benchmark-cwlogs-"
+  description = "Allow EC2 instances to write to the application log group"
+  policy      = data.aws_iam_policy_document.cloudwatch_logs.json
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_logs" {
   role       = aws_iam_role.ec2.name
-  policy_arn = aws_iam_policy.ec2.arn
+  policy_arn = aws_iam_policy.cloudwatch_logs.arn
 }
 
 resource "aws_iam_instance_profile" "ec2" {
-  name = "${var.name_prefix}-ec2-profile"
-  role = aws_iam_role.ec2.name
+  name_prefix = "haiku-benchmark-ec2-"
+  role        = aws_iam_role.ec2.name
 
   tags = local.common_tags
 }
 
-############################
+# ---------------------------------------------------------------
 # ALB
-############################
+# ---------------------------------------------------------------
 resource "aws_lb" "main" {
-  name                       = "${var.name_prefix}-alb"
-  load_balancer_type         = "application"
-  internal                   = false
-  security_groups            = [aws_security_group.alb.id]
-  subnets                    = aws_subnet.public[*].id
-  drop_invalid_header_fields = true
+  name_prefix        = "hb-"
+  load_balancer_type = "application"
+  internal           = false
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = [for s in aws_subnet.public : s.id]
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-alb" })
-
-  depends_on = [aws_internet_gateway.main]
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-alb"
+  })
 }
 
 resource "aws_lb_target_group" "app" {
-  name     = "${var.name_prefix}-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.main.id
-
-  deregistration_delay = 30
+  name_prefix = "hb-"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "instance"
 
   health_check {
     enabled             = true
@@ -397,7 +402,13 @@ resource "aws_lb_target_group" "app" {
     unhealthy_threshold = 3
   }
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-tg" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-tg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_lb_listener" "http" {
@@ -413,70 +424,57 @@ resource "aws_lb_listener" "http" {
   tags = local.common_tags
 }
 
-############################
+# ---------------------------------------------------------------
 # Launch Template / ASG
-############################
+# ---------------------------------------------------------------
 resource "aws_launch_template" "app" {
-  name_prefix   = "${var.name_prefix}-lt-"
+  name_prefix   = "haiku-benchmark-app-"
   image_id      = data.aws_ami.al2023.id
   instance_type = var.instance_type
+
+  vpc_security_group_ids = [aws_security_group.app.id]
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2.name
   }
 
-  vpc_security_group_ids = [aws_security_group.asg.id]
-
   metadata_options {
-    http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_endpoint = "enabled"
+    http_tokens   = "required"
   }
 
-  block_device_mappings {
-    device_name = "/dev/xvda"
-
-    ebs {
-      volume_size           = 8
-      volume_type           = "gp3"
-      encrypted             = true
-      delete_on_termination = true
-    }
-  }
-
-  user_data = base64encode(<<-EOF
+  user_data = base64encode(<<-EOT
     #!/bin/bash
     dnf install -y httpd
-    echo "<h1>haiku-benchmark</h1>" > /var/www/html/index.html
+    echo "haiku-benchmark" > /var/www/html/index.html
     systemctl enable --now httpd
-  EOF
+  EOT
   )
 
   tag_specifications {
     resource_type = "instance"
-    tags          = merge(local.common_tags, { Name = "${var.name_prefix}-app" })
+    tags = merge(local.common_tags, {
+      Name = "haiku-benchmark-app"
+    })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = merge(local.common_tags, { Name = "${var.name_prefix}-app-vol" })
+    tags          = local.common_tags
   }
 
   tags = local.common_tags
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 resource "aws_autoscaling_group" "app" {
-  name                      = "${var.name_prefix}-asg"
-  desired_capacity          = 2
-  min_size                  = 1
-  max_size                  = 3
-  vpc_zone_identifier       = aws_subnet.private[*].id
-  target_group_arns         = [aws_lb_target_group.app.arn]
-  health_check_type         = "ELB"
+  name_prefix         = "haiku-benchmark-app-"
+  desired_capacity    = 2
+  min_size            = 1
+  max_size            = 3
+  vpc_zone_identifier = [for s in aws_subnet.private : s.id]
+  target_group_arns   = [aws_lb_target_group.app.arn]
+  health_check_type   = "ELB"
+
   health_check_grace_period = 120
 
   launch_template {
@@ -484,69 +482,71 @@ resource "aws_autoscaling_group" "app" {
     version = aws_launch_template.app.latest_version
   }
 
-  dynamic "tag" {
-    for_each = merge(local.common_tags, { Name = "${var.name_prefix}-app" })
-    content {
-      key                 = tag.key
-      value               = tag.value
-      propagate_at_launch = true
-    }
+  tag {
+    key                 = "Project"
+    value               = "haiku-benchmark"
+    propagate_at_launch = true
   }
 
-  depends_on = [aws_nat_gateway.main, aws_route_table_association.private]
+  tag {
+    key                 = "Name"
+    value               = "haiku-benchmark-app"
+    propagate_at_launch = true
+  }
+
+  depends_on = [aws_nat_gateway.main]
 }
 
-############################
+# ---------------------------------------------------------------
 # RDS
-############################
+# ---------------------------------------------------------------
 resource "aws_db_subnet_group" "main" {
-  name       = "${var.name_prefix}-db-subnet-group"
-  subnet_ids = aws_subnet.private[*].id
+  name_prefix = "haiku-benchmark-"
+  subnet_ids  = [for s in aws_subnet.private : s.id]
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-db-subnet-group" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-db-subnet-group"
+  })
 }
 
 resource "aws_db_instance" "main" {
-  identifier = "${var.name_prefix}-mysql"
+  identifier_prefix = "haiku-benchmark-"
 
   engine         = "mysql"
   engine_version = "8.0"
   instance_class = var.db_instance_class
 
-  allocated_storage = var.db_allocated_storage
+  allocated_storage = 20
   storage_type      = "gp3"
   storage_encrypted = true
 
   db_name  = var.db_name
   username = var.db_username
+  port     = 3306
 
-  # Password is generated and stored in AWS Secrets Manager
+  # Master password is generated and stored in AWS Secrets Manager
   manage_master_user_password = true
 
   db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
+  vpc_security_group_ids = [aws_security_group.db.id]
   publicly_accessible    = false
   multi_az               = false
 
-  backup_retention_period = 1
+  backup_retention_period = 7
   skip_final_snapshot     = true
   deletion_protection     = false
-  apply_immediately       = true
 
-  tags = merge(local.common_tags, { Name = "${var.name_prefix}-mysql" })
+  tags = merge(local.common_tags, {
+    Name = "haiku-benchmark-mysql"
+  })
 }
 
 output "alb_dns_name" {
-  description = "DNS name of the ALB"
+  description = "DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name
 }
 
 output "rds_endpoint" {
-  description = "RDS endpoint hostname (no credentials)"
-  value       = aws_db_instance.main.address
-}
-
-output "rds_port" {
-  description = "RDS port"
-  value       = aws_db_instance.main.port
+  description = "Endpoint of the RDS instance (contains no credentials)"
+  value       = aws_db_instance.main.endpoint
 }

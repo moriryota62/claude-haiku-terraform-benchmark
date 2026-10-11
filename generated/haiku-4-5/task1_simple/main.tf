@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -12,31 +13,31 @@ provider "aws" {
 }
 
 variable "aws_region" {
-  description = "AWS region"
   type        = string
+  description = "AWS region"
   default     = "ap-northeast-1"
 }
 
 variable "bucket_name" {
-  description = "S3 bucket name"
   type        = string
-  default     = "my-private-bucket-12345"
+  description = "S3 bucket name"
+  default     = "my-private-bucket"
 }
 
-resource "aws_s3_bucket" "private_bucket" {
+resource "aws_s3_bucket" "private" {
   bucket = var.bucket_name
 }
 
-resource "aws_s3_bucket_versioning" "private_bucket" {
-  bucket = aws_s3_bucket.private_bucket.id
+resource "aws_s3_bucket_versioning" "private" {
+  bucket = aws_s3_bucket.private.id
 
   versioning_configuration {
     status = "Enabled"
   }
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "private_bucket" {
-  bucket = aws_s3_bucket.private_bucket.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "private" {
+  bucket = aws_s3_bucket.private.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -45,8 +46,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "private_bucket" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "private_bucket" {
-  bucket = aws_s3_bucket.private_bucket.id
+resource "aws_s3_bucket_public_access_block" "private" {
+  bucket = aws_s3_bucket.private.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -55,11 +56,11 @@ resource "aws_s3_bucket_public_access_block" "private_bucket" {
 }
 
 output "bucket_name" {
+  value       = aws_s3_bucket.private.id
   description = "The name of the S3 bucket"
-  value       = aws_s3_bucket.private_bucket.id
 }
 
 output "bucket_arn" {
+  value       = aws_s3_bucket.private.arn
   description = "The ARN of the S3 bucket"
-  value       = aws_s3_bucket.private_bucket.arn
 }

@@ -1,0 +1,1485 @@
+{
+  "haiku-4-5": {
+    "task1_simple": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 66,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 4.222804334,
+        "input_tokens": 642,
+        "output_tokens": 535
+      },
+      "fmt": {
+        "passed": true,
+        "diff": "",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 11,
+        "failed": 5,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV2_AWS_62",
+            "check_name": "Ensure S3 buckets should have event notifications enabled",
+            "resource": "aws_s3_bucket.private"
+          },
+          {
+            "check_id": "CKV2_AWS_61",
+            "check_name": "Ensure that an S3 bucket has a lifecycle configuration",
+            "resource": "aws_s3_bucket.private"
+          },
+          {
+            "check_id": "CKV_AWS_18",
+            "check_name": "Ensure the S3 bucket has access logging enabled",
+            "resource": "aws_s3_bucket.private"
+          },
+          {
+            "check_id": "CKV_AWS_144",
+            "check_name": "Ensure that S3 bucket has cross-region replication enabled",
+            "resource": "aws_s3_bucket.private"
+          },
+          {
+            "check_id": "CKV_AWS_145",
+            "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+            "resource": "aws_s3_bucket.private"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 8,
+        "total": 8,
+        "details": [
+          {
+            "name": "S3バケット",
+            "matched": true
+          },
+          {
+            "name": "バージョニング有効化",
+            "matched": true
+          },
+          {
+            "name": "サーバーサイド暗号化",
+            "matched": true
+          },
+          {
+            "name": "パブリックアクセスブロック",
+            "matched": true
+          },
+          {
+            "name": "バケット名variable",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          },
+          {
+            "name": "bucket name output",
+            "matched": true
+          },
+          {
+            "name": "ARN output",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 16,
+        "total": 16,
+        "violations": []
+      }
+    },
+    "task2_medium": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 183,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 5.734540875,
+        "input_tokens": 868,
+        "output_tokens": 1373
+      },
+      "fmt": {
+        "passed": false,
+        "diff": "main.tf\n--- old/main.tf\n+++ new/main.tf\n@@ -87,12 +87,12 @@\n resource \"aws_subnet\" \"public\" {\n   for_each = {\n     subnet_1 = {\n-      az_index    = 0\n-      cidr_block  = \"10.0.1.0/24\"\n+      az_index   = 0\n+      cidr_block = \"10.0.1.0/24\"\n     }\n     subnet_2 = {\n-      az_index    = 1\n-      cidr_block  = \"10.0.2.0/24\"\n+      az_index   = 1\n+      cidr_block = \"10.0.2.0/24\"\n     }\n   }\n \n@@ -110,8 +110,8 @@\n   vpc_id = aws_vpc.main.id\n \n   route {\n-    cidr_block      = \"0.0.0.0/0\"\n-    gateway_id      = aws_internet_gateway.main.id\n+    cidr_block = \"0.0.0.0/0\"\n+    gateway_id = aws_internet_gateway.main.id\n   }\n \n   tags = {\n",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 10,
+        "failed": 12,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"subnet_1\"]"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_security_group.ec2"
+          },
+          {
+            "check_id": "CKV_AWS_23",
+            "check_name": "Ensure every security group and rule has a description",
+            "resource": "aws_security_group.ec2"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.ec2"
+          },
+          {
+            "check_id": "CKV_AWS_79",
+            "check_name": "Ensure Instance Metadata Service Version 1 is not enabled",
+            "resource": "aws_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_126",
+            "check_name": "Ensure that detailed monitoring is enabled for EC2 instances",
+            "resource": "aws_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_135",
+            "check_name": "Ensure that EC2 is EBS optimized",
+            "resource": "aws_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_8",
+            "check_name": "Ensure all data stored in the Launch configuration or instance Elastic Blocks Store is securely encrypted",
+            "resource": "aws_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"subnet_2\"]"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_41",
+            "check_name": "Ensure an IAM role is attached to EC2 instance",
+            "resource": "aws_instance.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 11,
+        "total": 11,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリックサブネット(2つ以上)",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ルートテーブル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ",
+            "matched": true
+          },
+          {
+            "name": "EC2インスタンス",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "インスタンスタイプvariable",
+            "matched": true
+          },
+          {
+            "name": "SSH許可CIDR variable",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 29,
+        "total": 29,
+        "violations": []
+      }
+    },
+    "task3_complex": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 525,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 14.234322667,
+        "input_tokens": 1290,
+        "output_tokens": 3918
+      },
+      "fmt": {
+        "passed": false,
+        "diff": "main.tf\n--- old/main.tf\n+++ new/main.tf\n@@ -177,8 +177,8 @@\n   vpc_id = aws_vpc.main.id\n \n   route {\n-    cidr_block      = \"0.0.0.0/0\"\n-    gateway_id      = aws_internet_gateway.main.id\n+    cidr_block = \"0.0.0.0/0\"\n+    gateway_id = aws_internet_gateway.main.id\n   }\n \n   tags = {\n@@ -410,10 +410,10 @@\n \n # Auto Scaling Group\n resource \"aws_autoscaling_group\" \"main\" {\n-  name                = \"haiku-asg\"\n-  vpc_zone_identifier = [for subnet in aws_subnet.private : subnet.id]\n-  target_group_arns   = [aws_lb_target_group.main.arn]\n-  health_check_type   = \"ELB\"\n+  name                      = \"haiku-asg\"\n+  vpc_zone_identifier       = [for subnet in aws_subnet.private : subnet.id]\n+  target_group_arns         = [aws_lb_target_group.main.arn]\n+  health_check_type         = \"ELB\"\n   health_check_grace_period = 300\n \n   min_size         = 1\n@@ -473,18 +473,18 @@\n \n # RDS Instance\n resource \"aws_db_instance\" \"main\" {\n-  identifier            = \"haiku-db\"\n-  engine               = \"mysql\"\n-  engine_version       = \"8.0\"\n-  instance_class       = var.db_instance_class\n-  allocated_storage    = 20\n-  storage_type         = \"gp2\"\n-  db_name              = var.db_name\n-  username             = var.db_master_username\n-  password             = var.db_master_password\n-  db_subnet_group_name = aws_db_subnet_group.main.name\n+  identifier             = \"haiku-db\"\n+  engine                 = \"mysql\"\n+  engine_version         = \"8.0\"\n+  instance_class         = var.db_instance_class\n+  allocated_storage      = 20\n+  storage_type           = \"gp2\"\n+  db_name                = var.db_name\n+  username               = var.db_master_username\n+  password               = var.db_master_password\n+  db_subnet_group_name   = aws_db_subnet_group.main.name\n   vpc_security_group_ids = [aws_security_group.rds.id]\n-  \n+\n   multi_az            = false\n   publicly_accessible = false\n   skip_final_snapshot = true\n",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 51,
+        "failed": 28,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"public_1a\"]"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_security_group.alb"
+          },
+          {
+            "check_id": "CKV_AWS_23",
+            "check_name": "Ensure every security group and rule has a description",
+            "resource": "aws_security_group.alb"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.alb"
+          },
+          {
+            "check_id": "CKV_AWS_150",
+            "check_name": "Ensure that Load Balancer has deletion protection enabled",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_91",
+            "check_name": "Ensure the ELBv2 (Application/Network) has access logging enabled",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_131",
+            "check_name": "Ensure that ALB drops HTTP headers",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_2",
+            "check_name": "Ensure ALB protocol is HTTPS",
+            "resource": "aws_lb_listener.main"
+          },
+          {
+            "check_id": "CKV_AWS_23",
+            "check_name": "Ensure every security group and rule has a description",
+            "resource": "aws_security_group.asg"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.asg"
+          },
+          {
+            "check_id": "CKV_AWS_79",
+            "check_name": "Ensure Instance Metadata Service Version 1 is not enabled",
+            "resource": "aws_launch_template.main"
+          },
+          {
+            "check_id": "CKV_AWS_23",
+            "check_name": "Ensure every security group and rule has a description",
+            "resource": "aws_security_group.rds"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.rds"
+          },
+          {
+            "check_id": "CKV_AWS_161",
+            "check_name": "Ensure RDS database has IAM authentication enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_293",
+            "check_name": "Ensure that AWS database instances have deletion protection enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_157",
+            "check_name": "Ensure that RDS instances have Multi-AZ enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_129",
+            "check_name": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_226",
+            "check_name": "Ensure DB instance gets all minor upgrades automatically",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_118",
+            "check_name": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_16",
+            "check_name": "Ensure all data stored in the RDS is securely encrypted at rest",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"public_1c\"]"
+          },
+          {
+            "check_id": "CKV2_AWS_60",
+            "check_name": "Ensure RDS instance with copy tags to snapshots is enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_20",
+            "check_name": "Ensure that ALB redirects HTTP requests into HTTPS ones",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV_AWS_378",
+            "check_name": "Ensure AWS Load Balancer doesn't use HTTP protocol",
+            "resource": "aws_lb_target_group.main"
+          },
+          {
+            "check_id": "CKV_AWS_103",
+            "check_name": "Ensure that load balancer is using at least TLS 1.2",
+            "resource": "aws_lb_listener.main"
+          },
+          {
+            "check_id": "CKV2_AWS_28",
+            "check_name": "Ensure public facing ALB are protected by WAF",
+            "resource": "aws_lb.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 16,
+        "total": 16,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリック/プライベートサブネット",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "NATゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ALB",
+            "matched": true
+          },
+          {
+            "name": "ターゲットグループ",
+            "matched": true
+          },
+          {
+            "name": "Launch Template",
+            "matched": true
+          },
+          {
+            "name": "Auto Scaling Group",
+            "matched": true
+          },
+          {
+            "name": "RDSインスタンス",
+            "matched": true
+          },
+          {
+            "name": "DB subnet group",
+            "matched": true
+          },
+          {
+            "name": "IAMロール",
+            "matched": true
+          },
+          {
+            "name": "IAMインスタンスプロファイル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ(複数)",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 77,
+        "total": 77,
+        "violations": []
+      }
+    }
+  },
+  "haiku-5-5": {
+    "task1_simple": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 68,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 4.810265333,
+        "input_tokens": 683,
+        "output_tokens": 1038
+      },
+      "fmt": {
+        "passed": true,
+        "diff": "",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 11,
+        "failed": 5,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV2_AWS_62",
+            "check_name": "Ensure S3 buckets should have event notifications enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV2_AWS_61",
+            "check_name": "Ensure that an S3 bucket has a lifecycle configuration",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_18",
+            "check_name": "Ensure the S3 bucket has access logging enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_144",
+            "check_name": "Ensure that S3 bucket has cross-region replication enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_145",
+            "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+            "resource": "aws_s3_bucket.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 8,
+        "total": 8,
+        "details": [
+          {
+            "name": "S3バケット",
+            "matched": true
+          },
+          {
+            "name": "バージョニング有効化",
+            "matched": true
+          },
+          {
+            "name": "サーバーサイド暗号化",
+            "matched": true
+          },
+          {
+            "name": "パブリックアクセスブロック",
+            "matched": true
+          },
+          {
+            "name": "バケット名variable",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          },
+          {
+            "name": "bucket name output",
+            "matched": true
+          },
+          {
+            "name": "ARN output",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 16,
+        "total": 16,
+        "violations": []
+      }
+    },
+    "task2_medium": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 229,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 21.296266584,
+        "input_tokens": 933,
+        "output_tokens": 5587
+      },
+      "fmt": {
+        "passed": true,
+        "diff": "",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 23,
+        "failed": 10,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_vpc_security_group_ingress_rule.http"
+          },
+          {
+            "check_id": "CKV_AWS_79",
+            "check_name": "Ensure Instance Metadata Service Version 1 is not enabled",
+            "resource": "aws_instance.app"
+          },
+          {
+            "check_id": "CKV_AWS_88",
+            "check_name": "EC2 instance should not have public IP.",
+            "resource": "aws_instance.app"
+          },
+          {
+            "check_id": "CKV_AWS_126",
+            "check_name": "Ensure that detailed monitoring is enabled for EC2 instances",
+            "resource": "aws_instance.app"
+          },
+          {
+            "check_id": "CKV_AWS_135",
+            "check_name": "Ensure that EC2 is EBS optimized",
+            "resource": "aws_instance.app"
+          },
+          {
+            "check_id": "CKV_AWS_8",
+            "check_name": "Ensure all data stored in the Launch configuration or instance Elastic Blocks Store is securely encrypted",
+            "resource": "aws_instance.app"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_41",
+            "check_name": "Ensure an IAM role is attached to EC2 instance",
+            "resource": "aws_instance.app"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 11,
+        "total": 11,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリックサブネット(2つ以上)",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ルートテーブル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ",
+            "matched": true
+          },
+          {
+            "name": "EC2インスタンス",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "インスタンスタイプvariable",
+            "matched": true
+          },
+          {
+            "name": "SSH許可CIDR variable",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 39,
+        "total": 39,
+        "violations": []
+      }
+    },
+    "task3_complex": {
+      "structure": {
+        "file_count": 4,
+        "total_lines": 569,
+        "files": [
+          "outputs.tf",
+          "main.tf",
+          "providers.tf",
+          "variables.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 37.80238620899999,
+        "input_tokens": 1392,
+        "output_tokens": 10723
+      },
+      "fmt": {
+        "passed": false,
+        "diff": "main.tf\n--- old/main.tf\n+++ new/main.tf\n@@ -368,7 +368,7 @@\n \n   tag_specifications {\n     resource_type = \"volume\"\n-    tags         = local.common_tags\n+    tags          = local.common_tags\n   }\n \n   tags = merge(local.common_tags, {\n",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 74,
+        "failed": 20,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_security_group.alb"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.alb"
+          },
+          {
+            "check_id": "CKV_AWS_382",
+            "check_name": "Ensure no security groups allow egress from 0.0.0.0:0 to port -1",
+            "resource": "aws_security_group.app"
+          },
+          {
+            "check_id": "CKV_AWS_150",
+            "check_name": "Ensure that Load Balancer has deletion protection enabled",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_91",
+            "check_name": "Ensure the ELBv2 (Application/Network) has access logging enabled",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_131",
+            "check_name": "Ensure that ALB drops HTTP headers",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV_AWS_2",
+            "check_name": "Ensure ALB protocol is HTTPS",
+            "resource": "aws_lb_listener.http"
+          },
+          {
+            "check_id": "CKV_AWS_161",
+            "check_name": "Ensure RDS database has IAM authentication enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_293",
+            "check_name": "Ensure that AWS database instances have deletion protection enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_157",
+            "check_name": "Ensure that RDS instances have Multi-AZ enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_129",
+            "check_name": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_118",
+            "check_name": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV2_AWS_60",
+            "check_name": "Ensure RDS instance with copy tags to snapshots is enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_20",
+            "check_name": "Ensure that ALB redirects HTTP requests into HTTPS ones",
+            "resource": "aws_lb.main"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV_AWS_378",
+            "check_name": "Ensure AWS Load Balancer doesn't use HTTP protocol",
+            "resource": "aws_lb_target_group.app"
+          },
+          {
+            "check_id": "CKV_AWS_103",
+            "check_name": "Ensure that load balancer is using at least TLS 1.2",
+            "resource": "aws_lb_listener.http"
+          },
+          {
+            "check_id": "CKV2_AWS_28",
+            "check_name": "Ensure public facing ALB are protected by WAF",
+            "resource": "aws_lb.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 16,
+        "total": 16,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリック/プライベートサブネット",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "NATゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ALB",
+            "matched": true
+          },
+          {
+            "name": "ターゲットグループ",
+            "matched": true
+          },
+          {
+            "name": "Launch Template",
+            "matched": true
+          },
+          {
+            "name": "Auto Scaling Group",
+            "matched": true
+          },
+          {
+            "name": "RDSインスタンス",
+            "matched": true
+          },
+          {
+            "name": "DB subnet group",
+            "matched": true
+          },
+          {
+            "name": "IAMロール",
+            "matched": true
+          },
+          {
+            "name": "IAMインスタンスプロファイル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ(複数)",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 91,
+        "total": 91,
+        "violations": []
+      }
+    }
+  },
+  "sonnet-5-5": {
+    "task1_simple": {
+      "structure": {
+        "file_count": 4,
+        "total_lines": 64,
+        "files": [
+          "outputs.tf",
+          "main.tf",
+          "providers.tf",
+          "variables.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 4.065753583000001,
+        "input_tokens": 683,
+        "output_tokens": 654
+      },
+      "fmt": {
+        "passed": true,
+        "diff": "",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 11,
+        "failed": 5,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV2_AWS_62",
+            "check_name": "Ensure S3 buckets should have event notifications enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV2_AWS_61",
+            "check_name": "Ensure that an S3 bucket has a lifecycle configuration",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_18",
+            "check_name": "Ensure the S3 bucket has access logging enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_144",
+            "check_name": "Ensure that S3 bucket has cross-region replication enabled",
+            "resource": "aws_s3_bucket.main"
+          },
+          {
+            "check_id": "CKV_AWS_145",
+            "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+            "resource": "aws_s3_bucket.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 8,
+        "total": 8,
+        "details": [
+          {
+            "name": "S3バケット",
+            "matched": true
+          },
+          {
+            "name": "バージョニング有効化",
+            "matched": true
+          },
+          {
+            "name": "サーバーサイド暗号化",
+            "matched": true
+          },
+          {
+            "name": "パブリックアクセスブロック",
+            "matched": true
+          },
+          {
+            "name": "バケット名variable",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          },
+          {
+            "name": "bucket name output",
+            "matched": true
+          },
+          {
+            "name": "ARN output",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 16,
+        "total": 16,
+        "violations": []
+      }
+    },
+    "task2_medium": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 230,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 17.816491749999997,
+        "input_tokens": 933,
+        "output_tokens": 3115
+      },
+      "fmt": {
+        "passed": true,
+        "diff": "",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 0,
+        "by_severity": {},
+        "tool_errors": 0,
+        "issues": []
+      },
+      "checkov": {
+        "passed": 25,
+        "failed": 9,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"a\"]"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_vpc_security_group_ingress_rule.http"
+          },
+          {
+            "check_id": "CKV_AWS_88",
+            "check_name": "EC2 instance should not have public IP.",
+            "resource": "aws_instance.web"
+          },
+          {
+            "check_id": "CKV_AWS_126",
+            "check_name": "Ensure that detailed monitoring is enabled for EC2 instances",
+            "resource": "aws_instance.web"
+          },
+          {
+            "check_id": "CKV_AWS_135",
+            "check_name": "Ensure that EC2 is EBS optimized",
+            "resource": "aws_instance.web"
+          },
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"b\"]"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_41",
+            "check_name": "Ensure an IAM role is attached to EC2 instance",
+            "resource": "aws_instance.web"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 11,
+        "total": 11,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリックサブネット(2つ以上)",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ルートテーブル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ",
+            "matched": true
+          },
+          {
+            "name": "EC2インスタンス",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "インスタンスタイプvariable",
+            "matched": true
+          },
+          {
+            "name": "SSH許可CIDR variable",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 36,
+        "total": 36,
+        "violations": []
+      }
+    },
+    "task3_complex": {
+      "structure": {
+        "file_count": 1,
+        "total_lines": 531,
+        "files": [
+          "main.tf"
+        ]
+      },
+      "meta": {
+        "elapsed_sec": 37.249212125,
+        "input_tokens": 1392,
+        "output_tokens": 7124
+      },
+      "fmt": {
+        "passed": false,
+        "diff": "main.tf\n--- old/main.tf\n+++ new/main.tf\n@@ -438,7 +438,7 @@\n \n   tag_specifications {\n     resource_type = \"instance\"\n-    tags = merge(local.common_tags, { Name = \"haiku-benchmark-app\" })\n+    tags          = merge(local.common_tags, { Name = \"haiku-benchmark-app\" })\n   }\n \n   tag_specifications {\n",
+        "error": ""
+      },
+      "validate": {
+        "init_passed": true,
+        "init_error": "",
+        "validate_passed": true,
+        "validate_error": "",
+        "diagnostics_count": 0
+      },
+      "tflint": {
+        "issue_count": 1,
+        "by_severity": {
+          "warning": 1
+        },
+        "tool_errors": 0,
+        "issues": [
+          {
+            "rule": "terraform_unused_declarations",
+            "message": "data \"aws_caller_identity\" \"current\" is declared but not used"
+          }
+        ]
+      },
+      "checkov": {
+        "passed": 94,
+        "failed": 23,
+        "skipped": 0,
+        "failed_checks": [
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"a\"]"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_vpc_security_group_ingress_rule.alb_http"
+          },
+          {
+            "check_id": "CKV_AWS_260",
+            "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 80",
+            "resource": "aws_vpc_security_group_ingress_rule.app_http_from_alb"
+          },
+          {
+            "check_id": "CKV_AWS_338",
+            "check_name": "Ensure CloudWatch log groups retains logs for at least 1 year",
+            "resource": "aws_cloudwatch_log_group.app"
+          },
+          {
+            "check_id": "CKV_AWS_158",
+            "check_name": "Ensure that CloudWatch Log Group is encrypted by KMS",
+            "resource": "aws_cloudwatch_log_group.app"
+          },
+          {
+            "check_id": "CKV_AWS_150",
+            "check_name": "Ensure that Load Balancer has deletion protection enabled",
+            "resource": "aws_lb.app"
+          },
+          {
+            "check_id": "CKV_AWS_91",
+            "check_name": "Ensure the ELBv2 (Application/Network) has access logging enabled",
+            "resource": "aws_lb.app"
+          },
+          {
+            "check_id": "CKV_AWS_131",
+            "check_name": "Ensure that ALB drops HTTP headers",
+            "resource": "aws_lb.app"
+          },
+          {
+            "check_id": "CKV_AWS_2",
+            "check_name": "Ensure ALB protocol is HTTPS",
+            "resource": "aws_lb_listener.http"
+          },
+          {
+            "check_id": "CKV_AWS_161",
+            "check_name": "Ensure RDS database has IAM authentication enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_293",
+            "check_name": "Ensure that AWS database instances have deletion protection enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_157",
+            "check_name": "Ensure that RDS instances have Multi-AZ enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_129",
+            "check_name": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_226",
+            "check_name": "Ensure DB instance gets all minor upgrades automatically",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_118",
+            "check_name": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV_AWS_130",
+            "check_name": "Ensure VPC subnets do not assign public IP by default",
+            "resource": "aws_subnet.public[\"b\"]"
+          },
+          {
+            "check_id": "CKV2_AWS_60",
+            "check_name": "Ensure RDS instance with copy tags to snapshots is enabled",
+            "resource": "aws_db_instance.main"
+          },
+          {
+            "check_id": "CKV2_AWS_12",
+            "check_name": "Ensure the default security group of every VPC restricts all traffic",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV2_AWS_20",
+            "check_name": "Ensure that ALB redirects HTTP requests into HTTPS ones",
+            "resource": "aws_lb.app"
+          },
+          {
+            "check_id": "CKV2_AWS_11",
+            "check_name": "Ensure VPC flow logging is enabled in all VPCs",
+            "resource": "aws_vpc.main"
+          },
+          {
+            "check_id": "CKV_AWS_378",
+            "check_name": "Ensure AWS Load Balancer doesn't use HTTP protocol",
+            "resource": "aws_lb_target_group.app"
+          },
+          {
+            "check_id": "CKV_AWS_103",
+            "check_name": "Ensure that load balancer is using at least TLS 1.2",
+            "resource": "aws_lb_listener.http"
+          },
+          {
+            "check_id": "CKV2_AWS_28",
+            "check_name": "Ensure public facing ALB are protected by WAF",
+            "resource": "aws_lb.app"
+          }
+        ]
+      },
+      "requirements": {
+        "met": 16,
+        "total": 16,
+        "details": [
+          {
+            "name": "VPC",
+            "matched": true
+          },
+          {
+            "name": "パブリック/プライベートサブネット",
+            "matched": true
+          },
+          {
+            "name": "インターネットゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "NATゲートウェイ",
+            "matched": true
+          },
+          {
+            "name": "ALB",
+            "matched": true
+          },
+          {
+            "name": "ターゲットグループ",
+            "matched": true
+          },
+          {
+            "name": "Launch Template",
+            "matched": true
+          },
+          {
+            "name": "Auto Scaling Group",
+            "matched": true
+          },
+          {
+            "name": "RDSインスタンス",
+            "matched": true
+          },
+          {
+            "name": "DB subnet group",
+            "matched": true
+          },
+          {
+            "name": "IAMロール",
+            "matched": true
+          },
+          {
+            "name": "IAMインスタンスプロファイル",
+            "matched": true
+          },
+          {
+            "name": "セキュリティグループ(複数)",
+            "matched": true
+          },
+          {
+            "name": "AMI data source",
+            "matched": true
+          },
+          {
+            "name": "Projectタグ",
+            "matched": true
+          },
+          {
+            "name": "region variable",
+            "matched": true
+          }
+        ]
+      },
+      "security_antipatterns": [],
+      "coding_convention": {
+        "passed": 92,
+        "total": 92,
+        "violations": []
+      }
+    }
+  }
+}

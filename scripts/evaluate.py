@@ -214,6 +214,13 @@ def count_lines_and_files(dir_path):
     return {"file_count": len(tf_files), "total_lines": total_lines, "files": [f.name for f in tf_files]}
 
 
+def load_meta(dir_path):
+    meta_path = dir_path / "_meta.json"
+    if not meta_path.exists():
+        return {"elapsed_sec": None, "input_tokens": None, "output_tokens": None}
+    return json.loads(meta_path.read_text())
+
+
 def main():
     requirements_map = json.loads(REQS_PATH.read_text())
     all_results = {}
@@ -236,6 +243,7 @@ def main():
 
             result = {
                 "structure": count_lines_and_files(task_dir),
+                "meta": load_meta(task_dir),
                 "fmt": terraform_fmt_check(task_dir),
                 "validate": terraform_init_validate(task_dir),
                 "tflint": run_tflint(task_dir),

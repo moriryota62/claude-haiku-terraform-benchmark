@@ -6,10 +6,73 @@
 
 | タスク | Claude Haiku 4.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 |
 | --- | --- | --- | --- |
-| タスク1: シンプル (S3) | 81.8 | 83.8 | 83.8 |
-| タスク2: 中程度 (VPC+EC2) | 66.2 | 83.9 | 82.7 |
-| タスク3: 複雑 (ALB+ASG+RDS+IAM) | 72.2 | 84.0 | 75.0 |
-| **平均** | **73.4** | **83.9** | **80.5** |
+| タスク1: シンプル (S3) | 83.8 | 83.8 | 83.8 |
+| タスク2: 中程度 (VPC+EC2) | 69.1 | 84.7 | 84.3 |
+| タスク3: 複雑 (ALB+ASG+RDS+IAM) | 72.9 | 83.5 | 76.0 |
+| **平均** | **75.3** | **84.0** | **81.4** |
+
+## 評価指標ごとの点数内訳
+
+### タスク1: シンプル (S3)
+
+| 指標 | Claude Haiku 4.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 |
+| --- | --- | --- | --- |
+| fmt (10点) | 10.0 | 10.0 | 10.0 |
+| validate (20点) | 20.0 | 20.0 | 20.0 |
+| tflint (10点) | 10.0 | 10.0 | 10.0 |
+| checkov (20点) | 13.8 | 13.8 | 13.8 |
+| 要件カバレッジ (15点) | 15.0 | 15.0 | 15.0 |
+| 規約準拠 (15点) | 15.0 | 15.0 | 15.0 |
+| セキュリティ減点 | 0 | 0 | 0 |
+| **合計** | **83.8** | **83.8** | **83.8** |
+
+### タスク2: 中程度 (VPC+EC2)
+
+| 指標 | Claude Haiku 4.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 |
+| --- | --- | --- | --- |
+| fmt (10点) | 0.0 | 10.0 | 10.0 |
+| validate (20点) | 20.0 | 20.0 | 20.0 |
+| tflint (10点) | 10.0 | 10.0 | 10.0 |
+| checkov (20点) | 9.1 | 14.7 | 14.3 |
+| 要件カバレッジ (15点) | 15.0 | 15.0 | 15.0 |
+| 規約準拠 (15点) | 15.0 | 15.0 | 15.0 |
+| セキュリティ減点 | 0 | 0 | 0 |
+| **合計** | **69.1** | **84.7** | **84.3** |
+
+### タスク3: 複雑 (ALB+ASG+RDS+IAM)
+
+| 指標 | Claude Haiku 4.5 | Claude Sonnet 5.5 | Claude Haiku 5.5 |
+| --- | --- | --- | --- |
+| fmt (10点) | 0.0 | 10.0 | 0.0 |
+| validate (20点) | 20.0 | 20.0 | 20.0 |
+| tflint (10点) | 10.0 | 8.0 | 10.0 |
+| checkov (20点) | 12.9 | 15.5 | 16.0 |
+| 要件カバレッジ (15点) | 15.0 | 15.0 | 15.0 |
+| 規約準拠 (15点) | 15.0 | 15.0 | 15.0 |
+| セキュリティ減点 | 0 | 0 | 0 |
+| **合計** | **72.9** | **83.5** | **76.0** |
+
+## 生成時間・トークン数・コスト
+
+各モデルがタスクのコードを生成するのにかかった時間と、入出力トークン数、それに基づくコストを示す。コストはAmazon Bedrock(US Geo cross-region inference、`us.anthropic.*`)の価格(Claude Haiku 4.5: 入力$1.1/出力$5.5 (per 1M tokens), Claude Sonnet 5.5: 入力$2.2/出力$11.0 (per 1M tokens), Claude Haiku 5.5: 入力$0.11/出力$0.55 (per 1M tokens))から算出した。
+
+| タスク | モデル | 生成時間(秒) | 入力トークン | 出力トークン | コスト(USD) |
+| --- | --- | --- | --- | --- | --- |
+| タスク1: シンプル (S3) | Claude Haiku 4.5 | 3.7 | 642 | 535 | 0.0036 |
+| タスク1: シンプル (S3) | Claude Sonnet 5.5 | 3.8 | 683 | 652 | 0.0087 |
+| タスク1: シンプル (S3) | Claude Haiku 5.5 | 4.4 | 683 | 918 | 0.0006 |
+| タスク2: 中程度 (VPC+EC2) | Claude Haiku 4.5 | 5.9 | 868 | 1464 | 0.0090 |
+| タスク2: 中程度 (VPC+EC2) | Claude Sonnet 5.5 | 18.3 | 933 | 3256 | 0.0379 |
+| タスク2: 中程度 (VPC+EC2) | Claude Haiku 5.5 | 15.8 | 933 | 4066 | 0.0023 |
+| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Haiku 4.5 | 14.3 | 1290 | 3863 | 0.0227 |
+| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Sonnet 5.5 | 38.9 | 1392 | 7182 | 0.0821 |
+| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Haiku 5.5 | 32.6 | 1392 | 8970 | 0.0051 |
+
+| モデル | 合計生成時間(秒) | 合計コスト(USD) |
+| --- | --- | --- |
+| Claude Haiku 4.5 | 23.9 | 0.0353 |
+| Claude Sonnet 5.5 | 61.0 | 0.1286 |
+| Claude Haiku 5.5 | 52.8 | 0.0080 |
 
 ## 詳細結果
 
@@ -17,59 +80,28 @@
 
 | モデル | fmt | validate | tflint issues | checkov pass/fail | 要件カバレッジ | 規約準拠 | セキュリティ懸念 | 行数 | ファイル数 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Claude Haiku 4.5 | OK | OK | 1 | 11/5 | 8/8 | 16/16 | - | 65 | 1 |
-| Claude Sonnet 5.5 | OK | OK | 0 | 11/5 | 8/8 | 16/16 | - | 79 | 1 |
-| Claude Haiku 5.5 | OK | OK | 0 | 11/5 | 8/8 | 16/16 | - | 64 | 4 |
+| Claude Haiku 4.5 | OK | OK | 0 | 11/5 | 8/8 | 16/16 | - | 66 | 1 |
+| Claude Sonnet 5.5 | OK | OK | 0 | 11/5 | 8/8 | 16/16 | - | 64 | 4 |
+| Claude Haiku 5.5 | OK | OK | 0 | 11/5 | 8/8 | 16/16 | - | 67 | 1 |
 
 
 ### タスク2: 中程度 (VPC+EC2)
 
 | モデル | fmt | validate | tflint issues | checkov pass/fail | 要件カバレッジ | 規約準拠 | セキュリティ懸念 | 行数 | ファイル数 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Claude Haiku 4.5 | NG | OK | 1 | 10/12 | 11/11 | 32/34 | - | 176 | 1 |
-| Claude Sonnet 5.5 | OK | OK | 0 | 25/9 | 11/11 | 36/38 | - | 228 | 1 |
-| Claude Haiku 5.5 | OK | OK | 0 | 23/11 | 11/11 | 36/38 | - | 208 | 1 |
+| Claude Haiku 4.5 | NG | OK | 0 | 10/12 | 11/11 | 32/32 | - | 194 | 1 |
+| Claude Sonnet 5.5 | OK | OK | 0 | 25/9 | 11/11 | 36/36 | - | 238 | 1 |
+| Claude Haiku 5.5 | OK | OK | 0 | 25/10 | 11/11 | 41/41 | - | 225 | 1 |
 
-- **Claude Haiku 4.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
-- **Claude Sonnet 5.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
-- **Claude Haiku 5.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
 
 ### タスク3: 複雑 (ALB+ASG+RDS+IAM)
 
 | モデル | fmt | validate | tflint issues | checkov pass/fail | 要件カバレッジ | 規約準拠 | セキュリティ懸念 | 行数 | ファイル数 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Claude Haiku 4.5 | NG | OK | 0 | 51/28 | 16/16 | 76/80 | - | 499 | 1 |
-| Claude Sonnet 5.5 | OK | OK | 1 | 99/20 | 16/16 | 95/99 | - | 552 | 1 |
-| Claude Haiku 5.5 | NG | OK | 0 | 76/21 | 16/16 | 90/94 | - | 563 | 1 |
+| Claude Haiku 4.5 | NG | OK | 0 | 51/28 | 16/16 | 82/82 | - | 527 | 1 |
+| Claude Sonnet 5.5 | OK | OK | 1 | 76/22 | 16/16 | 74/74 | - | 552 | 1 |
+| Claude Haiku 5.5 | NG | OK | 0 | 84/21 | 16/16 | 101/101 | - | 548 | 1 |
 
-- **Claude Haiku 4.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
-- **Claude Sonnet 5.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
-- **Claude Haiku 5.5**: 規約違反: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
-
-## コーディング規約を明示した場合の準拠率
-
-プロンプトに規約を書かなかった場合(規約なし)と、タスク末尾に明示的なコーディング規約を追記した場合(規約あり)で、準拠率がどう変わるかを比較した。
-
-| タスク | モデル | 規約なし | 規約あり |
-| --- | --- | --- | --- |
-| タスク1: シンプル (S3) | Claude Haiku 4.5 | 16/16 | 16/16 |
-| タスク1: シンプル (S3) | Claude Sonnet 5.5 | 16/16 | 16/16 |
-| タスク1: シンプル (S3) | Claude Haiku 5.5 | 16/16 | 16/16 |
-| タスク2: 中程度 (VPC+EC2) | Claude Haiku 4.5 | 32/34 | 32/32 |
-| タスク2: 中程度 (VPC+EC2) | Claude Sonnet 5.5 | 36/38 | 36/36 |
-| タスク2: 中程度 (VPC+EC2) | Claude Haiku 5.5 | 36/38 | 41/41 |
-| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Haiku 4.5 | 76/80 | 82/82 |
-| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Sonnet 5.5 | 95/99 | 95/95 |
-| タスク3: 複雑 (ALB+ASG+RDS+IAM) | Claude Haiku 5.5 | 90/94 | 89/89 |
-
-### 規約なしで検出された違反の内訳
-
-- **Claude Haiku 4.5 / タスク2: 中程度 (VPC+EC2)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
-- **Claude Sonnet 5.5 / タスク2: 中程度 (VPC+EC2)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
-- **Claude Haiku 5.5 / タスク2: 中程度 (VPC+EC2)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている
-- **Claude Haiku 4.5 / タスク3: 複雑 (ALB+ASG+RDS+IAM)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
-- **Claude Sonnet 5.5 / タスク3: 複雑 (ALB+ASG+RDS+IAM)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
-- **Claude Haiku 5.5 / タスク3: 複雑 (ALB+ASG+RDS+IAM)**: resource "aws_subnet.public" はcountではなくfor_eachを使っている, resource "aws_subnet.private" はcountではなくfor_eachを使っている, resource "aws_route_table_association.public" はcountではなくfor_eachを使っている, resource "aws_route_table_association.private" はcountではなくfor_eachを使っている
 
 ## スコア算出方法
 

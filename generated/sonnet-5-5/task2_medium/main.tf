@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = ">= 5.0"
     }
   }
 }
@@ -20,49 +20,39 @@ provider "aws" {
 }
 
 variable "region" {
-  description = "AWS region"
   type        = string
+  description = "AWSリージョン"
   default     = "ap-northeast-1"
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for the VPC"
   type        = string
+  description = "VPCのCIDRブロック"
   default     = "10.0.0.0/16"
+}
+
+variable "ssh_allowed_cidrs" {
+  type        = list(string)
+  description = "SSH(22番)接続を許可するCIDRのリスト。デフォルトは空(SSH接続を許可しない)。0.0.0.0/0は指定不可"
+  default     = []
 
   validation {
-    condition     = can(cidrhost(var.vpc_cidr, 0))
-    error_message = "vpc_cidr must be a valid CIDR block."
+    condition     = !contains(var.ssh_allowed_cidrs, "0.0.0.0/0")
+    error_message = "ssh_allowed_cidrs に 0.0.0.0/0 を指定することはできません。"
   }
 }
 
 variable "instance_type" {
-  description = "EC2 instance type"
   type        = string
+  description = "EC2インスタンスタイプ"
   default     = "t3.micro"
-}
-
-variable "ssh_allowed_cidrs" {
-  description = "CIDR blocks allowed to SSH (port 22). Empty list disables SSH ingress. 0.0.0.0/0 is not allowed."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for c in var.ssh_allowed_cidrs : can(cidrhost(c, 0))])
-    error_message = "All ssh_allowed_cidrs must be valid CIDR blocks."
-  }
-
-  validation {
-    condition     = !contains(var.ssh_allowed_cidrs, "0.0.0.0/0")
-    error_message = "ssh_allowed_cidrs must not contain 0.0.0.0/0."
-  }
 }
 
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-data "aws_ami" "al2023" {
+data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
 
@@ -82,6 +72,19 @@ data "aws_ami" "al2023" {
   }
 }
 
+locals {
+  public_subnets = {
+    a = {
+      cidr_block        = cidrsubnet(var.vpc_cidr, 8, 0)
+      availability_zone = data.aws_availability_zones.available.names[0]
+    }
+    b = {
+      cidr_block        = cidrsubnet(var.vpc_cidr, 8, 1)
+      availability_zone = data.aws_availability_zones.available.names[1]
+    }
+  }
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -94,15 +97,15 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "public" {
-  count = 2
+  for_each = local.public_subnets
 
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  cidr_block              = each.value.cidr_block
+  availability_zone       = each.value.availability_zone
   map_public_ip_on_launch = true
 
   tags = {
-    Name    = "haiku-benchmark-public-${count.index + 1}"
+    Name    = "haiku-benchmark-public-${each.key}"
     Project = "haiku-benchmark"
   }
 }
@@ -131,19 +134,19 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count = 2
+  for_each = aws_subnet.public
 
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_security_group" "ec2" {
-  name        = "haiku-benchmark-ec2-sg"
-  description = "Security group for EC2 instance (SSH restricted, HTTP)"
+resource "aws_security_group" "web" {
+  name        = "haiku-benchmark-web-sg"
+  description = "Security group for web EC2 instance"
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name    = "haiku-benchmark-ec2-sg"
+    Name    = "haiku-benchmark-web-sg"
     Project = "haiku-benchmark"
   }
 }
@@ -151,7 +154,7 @@ resource "aws_security_group" "ec2" {
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   for_each = toset(var.ssh_allowed_cidrs)
 
-  security_group_id = aws_security_group.ec2.id
+  security_group_id = aws_security_group.web.id
   description       = "SSH from allowed CIDR"
   ip_protocol       = "tcp"
   from_port         = 22
@@ -159,12 +162,13 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   cidr_ipv4         = each.value
 
   tags = {
+    Name    = "haiku-benchmark-web-ssh"
     Project = "haiku-benchmark"
   }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
-  security_group_id = aws_security_group.ec2.id
+  security_group_id = aws_security_group.web.id
   description       = "HTTP from anywhere"
   ip_protocol       = "tcp"
   from_port         = 80
@@ -172,26 +176,28 @@ resource "aws_vpc_security_group_ingress_rule" "http" {
   cidr_ipv4         = "0.0.0.0/0"
 
   tags = {
+    Name    = "haiku-benchmark-web-http"
     Project = "haiku-benchmark"
   }
 }
 
 resource "aws_vpc_security_group_egress_rule" "all" {
-  security_group_id = aws_security_group.ec2.id
+  security_group_id = aws_security_group.web.id
   description       = "Allow all outbound"
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
 
   tags = {
+    Name    = "haiku-benchmark-web-egress-all"
     Project = "haiku-benchmark"
   }
 }
 
 resource "aws_instance" "web" {
-  ami                         = data.aws_ami.al2023.id
+  ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public[0].id
-  vpc_security_group_ids      = [aws_security_group.ec2.id]
+  subnet_id                   = aws_subnet.public["a"].id
+  vpc_security_group_ids      = [aws_security_group.web.id]
   associate_public_ip_address = true
 
   metadata_options {
@@ -200,12 +206,16 @@ resource "aws_instance" "web" {
   }
 
   root_block_device {
-    encrypted   = true
-    volume_type = "gp3"
+    encrypted = true
   }
 
   tags = {
-    Name    = "haiku-benchmark-ec2"
+    Name    = "haiku-benchmark-web"
+    Project = "haiku-benchmark"
+  }
+
+  volume_tags = {
+    Name    = "haiku-benchmark-web-root"
     Project = "haiku-benchmark"
   }
 
@@ -213,16 +223,16 @@ resource "aws_instance" "web" {
 }
 
 output "vpc_id" {
-  description = "VPC ID"
+  description = "作成したVPCのID"
   value       = aws_vpc.main.id
 }
 
 output "public_subnet_ids" {
-  description = "List of public subnet IDs"
-  value       = aws_subnet.public[*].id
+  description = "パブリックサブネットIDの一覧"
+  value       = [for subnet in aws_subnet.public : subnet.id]
 }
 
-output "ec2_public_ip" {
-  description = "Public IP of the EC2 instance"
+output "instance_public_ip" {
+  description = "EC2インスタンスのパブリックIP"
   value       = aws_instance.web.public_ip
 }

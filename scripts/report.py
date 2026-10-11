@@ -11,6 +11,13 @@ MODEL_LABELS = {
     "sonnet-5-5": "Claude Sonnet 5.5",
     "haiku-5-5": "Claude Haiku 5.5",
 }
+
+# Amazon Bedrock, US Geo cross-region inference profile (us.anthropic.*) の価格 ($/1M tokens)
+MODEL_PRICE_PER_1M = {
+    "haiku-4-5": {"input": 1.10, "output": 5.50},
+    "sonnet-5-5": {"input": 2.20, "output": 11.00},
+    "haiku-5-5": {"input": 0.11, "output": 0.55},
+}
 TASK_LABELS = {
     "task1_simple": "タスク1: シンプル (S3)",
     "task2_medium": "タスク2: 中程度 (VPC+EC2)",
@@ -20,25 +27,55 @@ MODEL_ORDER = ["haiku-4-5", "sonnet-5-5", "haiku-5-5"]
 TASK_ORDER = ["task1_simple", "task2_medium", "task3_complex"]
 
 
-def score_row(r):
-    """100点満点の簡易スコア。fmt/validate/tflint/checkov/要件カバレッジ/コーディング規約を重み付け。"""
+def calc_cost_usd(model, meta):
+    price = MODEL_PRICE_PER_1M.get(model)
+    if not price or meta.get("input_tokens") is None:
+        return None
+    return (
+        meta["input_tokens"] / 1_000_000 * price["input"]
+        + meta["output_tokens"] / 1_000_000 * price["output"]
+    )
+
+
+SCORE_COMPONENTS = ["fmt", "validate", "tflint", "checkov", "requirements", "convention", "security"]
+SCORE_COMPONENT_LABELS = {
+    "fmt": "fmt (10点)",
+    "validate": "validate (20点)",
+    "tflint": "tflint (10点)",
+    "checkov": "checkov (20点)",
+    "requirements": "要件カバレッジ (15点)",
+    "convention": "規約準拠 (15点)",
+    "security": "セキュリティ減点",
+}
+
+
+def score_breakdown(r):
+    """指標ごとの点数内訳(fmt/validate/tflint/checkov/要件カバレッジ/コーディング規約/セキュリティ減点)を返す。"""
     if "error" in r:
-        return 0.0
-    score = 0.0
-    score += 10 if r["fmt"]["passed"] else 0
-    score += 20 if r["validate"]["validate_passed"] else 0
+        return {k: 0.0 for k in SCORE_COMPONENTS} | {"total": 0.0}
+
+    breakdown = {}
+    breakdown["fmt"] = 10.0 if r["fmt"]["passed"] else 0.0
+    breakdown["validate"] = 20.0 if r["validate"]["validate_passed"] else 0.0
     tflint_penalty = min(r["tflint"]["issue_count"] * 2, 10)
-    score += max(0, 10 - tflint_penalty)
+    breakdown["tflint"] = max(0.0, 10.0 - tflint_penalty)
     total_checks = r["checkov"]["passed"] + r["checkov"]["failed"]
     checkov_ratio = (r["checkov"]["passed"] / total_checks) if total_checks else 1.0
-    score += checkov_ratio * 20
+    breakdown["checkov"] = round(checkov_ratio * 20, 1)
     req_ratio = r["requirements"]["met"] / r["requirements"]["total"] if r["requirements"]["total"] else 1.0
-    score += req_ratio * 15
+    breakdown["requirements"] = round(req_ratio * 15, 1)
     conv = r.get("coding_convention")
     conv_ratio = (conv["passed"] / conv["total"]) if conv and conv["total"] else 1.0
-    score += conv_ratio * 15
-    score -= len(r["security_antipatterns"]) * 5
-    return round(max(score, 0), 1)
+    breakdown["convention"] = round(conv_ratio * 15, 1)
+    breakdown["security"] = round(-len(r["security_antipatterns"]) * 5, 1)
+
+    total = round(max(sum(breakdown.values()), 0), 1)
+    breakdown["total"] = total
+    return breakdown
+
+
+def score_row(r):
+    return score_breakdown(r)["total"]
 
 
 def main():
@@ -70,6 +107,64 @@ def main():
 
     avg_row = ["**平均**"] + [f"**{round(totals[m] / count, 1)}**" for m in MODEL_ORDER]
     lines.append("| " + " | ".join(avg_row) + " |")
+    lines.append("")
+
+    lines.append("## 評価指標ごとの点数内訳\n")
+    for task in TASK_ORDER:
+        lines.append(f"### {TASK_LABELS[task]}\n")
+        lines.append("| 指標 | " + " | ".join(MODEL_LABELS[m] for m in MODEL_ORDER) + " |")
+        lines.append("| --- | " + " | ".join("---" for _ in MODEL_ORDER) + " |")
+        breakdowns = {
+            m: score_breakdown(data.get(m, {}).get(task, {"error": "missing"}))
+            for m in MODEL_ORDER
+        }
+        for component in SCORE_COMPONENTS:
+            row = [SCORE_COMPONENT_LABELS[component]]
+            for m in MODEL_ORDER:
+                row.append(f"{breakdowns[m][component]}")
+            lines.append("| " + " | ".join(row) + " |")
+        total_row = ["**合計**"] + [f"**{breakdowns[m]['total']}**" for m in MODEL_ORDER]
+        lines.append("| " + " | ".join(total_row) + " |")
+        lines.append("")
+
+    price_desc = ", ".join(
+        f"{MODEL_LABELS[m]}: 入力${MODEL_PRICE_PER_1M[m]['input']}/出力${MODEL_PRICE_PER_1M[m]['output']} (per 1M tokens)"
+        for m in MODEL_ORDER
+    )
+    lines.append("## 生成時間・トークン数・コスト\n")
+    lines.append(
+        "各モデルがタスクのコードを生成するのにかかった時間と、入出力トークン数、"
+        "それに基づくコストを示す。コストはAmazon Bedrock(US Geo cross-region inference、"
+        f"`us.anthropic.*`)の価格({price_desc})"
+        "から算出した。\n"
+    )
+    lines.append("| タスク | モデル | 生成時間(秒) | 入力トークン | 出力トークン | コスト(USD) |")
+    lines.append("| --- | --- | --- | --- | --- | --- |")
+    cost_totals = {m: 0.0 for m in MODEL_ORDER}
+    time_totals = {m: 0.0 for m in MODEL_ORDER}
+    for task in TASK_ORDER:
+        for model in MODEL_ORDER:
+            r = data.get(model, {}).get(task)
+            meta = (r or {}).get("meta", {})
+            elapsed = meta.get("elapsed_sec")
+            cost = calc_cost_usd(model, meta)
+            if elapsed is not None:
+                time_totals[model] += elapsed
+            if cost is not None:
+                cost_totals[model] += cost
+            elapsed_str = f"{elapsed:.1f}" if elapsed is not None else "-"
+            cost_str = f"{cost:.4f}" if cost is not None else "-"
+            in_tok = meta.get("input_tokens")
+            out_tok = meta.get("output_tokens")
+            lines.append(
+                f"| {TASK_LABELS[task]} | {MODEL_LABELS[model]} | {elapsed_str} | "
+                f"{in_tok if in_tok is not None else '-'} | {out_tok if out_tok is not None else '-'} | {cost_str} |"
+            )
+    lines.append("")
+    lines.append("| モデル | 合計生成時間(秒) | 合計コスト(USD) |")
+    lines.append("| --- | --- | --- |")
+    for model in MODEL_ORDER:
+        lines.append(f"| {MODEL_LABELS[model]} | {time_totals[model]:.1f} | {cost_totals[model]:.4f} |")
     lines.append("")
 
     lines.append("## 詳細結果\n")
@@ -110,30 +205,6 @@ def main():
             if conv.get("violations"):
                 lines.append(f"- **{MODEL_LABELS[model]}**: 規約違反: {', '.join(conv['violations'])}")
         lines.append("")
-
-    lines.append("## コーディング規約を明示した場合の準拠率\n")
-    lines.append(
-        "プロンプトに規約を書かなかった場合(規約なし)と、タスク末尾に明示的なコーディング規約を追記した場合(規約あり)で、"
-        "準拠率がどう変わるかを比較した。\n"
-    )
-    lines.append("| タスク | モデル | 規約なし | 規約あり |")
-    lines.append("| --- | --- | --- | --- |")
-    for task in TASK_ORDER:
-        for model in MODEL_ORDER:
-            base = data.get(model, {}).get(task, {}).get("coding_convention", {})
-            conv = data.get(model, {}).get(task + "_conv", {}).get("coding_convention", {})
-            base_str = f"{base.get('passed', 0)}/{base.get('total', 0)}" if base else "-"
-            conv_str = f"{conv.get('passed', 0)}/{conv.get('total', 0)}" if conv else "-"
-            lines.append(f"| {TASK_LABELS[task]} | {MODEL_LABELS[model]} | {base_str} | {conv_str} |")
-    lines.append("")
-
-    lines.append("### 規約なしで検出された違反の内訳\n")
-    for task in TASK_ORDER:
-        for model in MODEL_ORDER:
-            base = data.get(model, {}).get(task, {}).get("coding_convention", {})
-            if base.get("violations"):
-                lines.append(f"- **{MODEL_LABELS[model]} / {TASK_LABELS[task]}**: {', '.join(base['violations'])}")
-    lines.append("")
 
     lines.append("## スコア算出方法\n")
     lines.append(
